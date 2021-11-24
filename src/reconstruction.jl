@@ -76,6 +76,11 @@ is unnormalized two-point correlation function in frequency domain and
 iterations. Smaller `ϵ` usually produces better results, but default
 value should be OK for all cases.
 
+# References
+1. A. Cherkasov, A. Ananev, Adaptive phase-retrieval stochastic
+   reconstruction with correlation functions: Three-dimensional images
+   from two-dimensional cuts, Phys. Rev. E, 104, 3, 2021
+
 See also: [`two_point`](@ref).
 """
 function phaserec(s2ft :: AbstractArray{<: AbstractFloat}, size;
