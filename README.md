@@ -7,8 +7,8 @@ Run `?phaserec` and `?two_point` in REPL for documentation.
 
 ## Examples
 
-| Original image            | Reconstructed image        | Commentary |
-|---------------------------|----------------------------|------------|
-| ![](img/ceramic-orig.png) | ![](img/ceramic-recon.png) | Ceramic    |
-| ![](img/shale-orig.png)   | ![](img/shale-recon.png)   | Shale      |
-| ![](img/soil-orig.png)    | ![](img/soil-recon.png)    | Soil       |
+| Original image             | Reconstructed image         | Commentary |
+|----------------------------|-----------------------------|------------|
+| ![](imgs/ceramic-orig.png) | ![](imgs/ceramic-rec.png) | Ceramic    |
+| ![](imgs/shale-orig.png)   | ![](imgs/shale-rec.png)   | Shale      |
+| ![](imgs/soil-orig.png)    | ![](imgs/soil-rec.png)    | Soil       |
