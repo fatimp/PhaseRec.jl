@@ -1,4 +1,5 @@
 # PhaseRec.jl
+[![CI](https://github.com/shamazmazum/PhaseRec.jl/actions/workflows/test.yml/badge.svg)](https://github.com/shamazmazum/PhaseRec.jl/actions/workflows/test.yml)
 
 Porous media reconstruction package which uses a method called "Phase
 reconstruction" or, shortly, "PhaseRec".
