@@ -115,7 +115,8 @@ end
 """
     phaserec(array; radius = 0.6, maxsteps = 300, ϵ = 10^-5)
 
-Reconstruct `array` which must be an array of booleans.
+Reconstruct `array` which must be an array of booleans. This is
+equivalent to running `phaserec(two_point(array), size(array); ...)`.
 """
 phaserec(array :: AbstractArray{Bool}; radius = 0.6, maxsteps = 300, ϵ = 10^-5) =
     phaserec(two_point(array), size(array);
