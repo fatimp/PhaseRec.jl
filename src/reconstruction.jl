@@ -34,17 +34,14 @@ two_point(array :: AbstractArray{Bool}) = array |> rfft .|> abs2
 # This is the core of PhaseRec algorithm.
 #
 # This function takes an array and replaces absolute value of its FFT
-# with content of s2ft and then applies low-pass filter to remove
-# noise.
+# with content of s2ft and then does inverse FFT.
 function replace_abs(array   :: AbstractArray{Bool, N},
-                     lowpass :: AbstractArray{C, N},
-                     s2ft    :: AbstractArray{R, N}) where {C <: Complex, R <: AbstractFloat, N}
+                     s2ft    :: AbstractArray{R, N}) where {R <: AbstractFloat, N}
     myifft(x) = irfft(x, size(array, 1))
     ft = rfft(array)
 
     repft = @. ft * sqrt(s2ft) / abs(ft)
     repft = replace(x -> isnan(x) ? 0 : x, repft)
-    repft = repft .* lowpass
 
     return repft |> myifft .|> real
 end
@@ -58,8 +55,15 @@ function make_filter(size, σ)
         array[idx] = exp(-sum(x)/(2σ^2))
     end
 
-    array = array ./ sum(array)
-    return rfft(array)
+    return array ./ sum(array)
+end
+
+# imfilter from Images.jl does not work with 3D arrays, so...
+function apply_filter(array  :: AbstractArray{R, N},
+                      filter :: AbstractArray{R, N}) where {R <: AbstractFloat, N}
+    myifft(x) = irfft(x, size(array, 1))
+
+    return myifft(rfft(array) .* rfft(filter))
 end
 
 # Convert grayscale array to binary saving porosity of the original
@@ -85,16 +89,22 @@ See also: [`two_point`](@ref).
 """
 function phaserec(s2ft :: AbstractArray{<: AbstractFloat}, size;
                   radius = 0.6, maxsteps = 300, ϵ = 10^-5)
-    # Make initial guess of
     p = porosity(s2ft, size)
+    # Make initial guess for the reconstruction
     recon  = initial_guess(size, p)
+    # Make Gaussian low-pass filter
     filter = make_filter(size, radius)
+    # Cost function based on S₂ map
     normfn(corr, rec) = norm((corr - two_point(rec))/length(corr))
     initnorm = normfn(s2ft, recon)
     oldn = 1.0
 
     for steps in 1:maxsteps
-        gray = replace_abs(recon, filter, s2ft)
+        # Restore S₂ function
+        gray = replace_abs(recon, s2ft)
+        # Apply low-pass filter
+        gray = apply_filter(filter, gray)
+        # Convert to two-phase image
         recon = threshold(gray, p)
 
         n = normfn(s2ft, recon) / initnorm
