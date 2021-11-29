@@ -37,33 +37,26 @@ two_point(array :: AbstractArray{Bool}) = array |> rfft .|> abs2
 # with content of s2ft and then does inverse FFT.
 function replace_abs(array   :: AbstractArray{Bool, N},
                      s2ft    :: AbstractArray{R, N}) where {R <: AbstractFloat, N}
-    myifft(x) = irfft(x, size(array, 1))
     ft = rfft(array)
-
     repft = @. ft * sqrt(s2ft) / abs(ft)
-    repft = replace(x -> isnan(x) ? 0 : x, repft)
 
-    return repft |> myifft .|> real
+    return replace(x -> isnan(x) ? 0 : x, repft)
 end
 
 # Make Gaussian low-pass filter
 function make_filter(size, σ)
     array = zeros(Float64, size)
-    w = 4ceil(Int, σ) + 1
-    for idx in CartesianIndices(array)
+    # Filter width
+    l = 4ceil(Int, σ) + 1
+    w = l >> 1
+
+    uidx = oneunit(CartesianIndices(array)[begin])
+    for idx in uidx:l*uidx
         x = ((x-1-w)^2 for x in Tuple(idx))
         array[idx] = exp(-sum(x)/(2σ^2))
     end
 
-    return array ./ sum(array)
-end
-
-# imfilter from Images.jl does not work with 3D arrays, so...
-function apply_filter(array  :: AbstractArray{R, N},
-                      filter :: AbstractArray{R, N}) where {R <: AbstractFloat, N}
-    myifft(x) = irfft(x, size(array, 1))
-
-    return myifft(rfft(array) .* rfft(filter))
+    return rfft(array ./ sum(array))
 end
 
 # Convert grayscale array to binary saving porosity of the original
@@ -103,9 +96,9 @@ function phaserec(s2ft :: AbstractArray{<: AbstractFloat}, size;
         # Restore S₂ function
         gray = replace_abs(recon, s2ft)
         # Apply low-pass filter
-        gray = apply_filter(filter, gray)
+        gray = filter .* gray
         # Convert to two-phase image
-        recon = threshold(gray, p)
+        recon = threshold(irfft(gray, size[1]), p)
 
         n = normfn(s2ft, recon) / initnorm
 
