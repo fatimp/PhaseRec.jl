@@ -1,4 +1,5 @@
 function initial_guess(size, p :: AbstractFloat)
+    @assert 0 < p < 1
     array   = zeros(Bool, size)
     nsolid  = (1 - p)*length(array) |> round |> Int
     n       = 0
