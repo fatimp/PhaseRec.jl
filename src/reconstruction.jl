@@ -13,9 +13,11 @@ function initial_guess(size, p :: AbstractFloat)
         end
 
         if n == nsolid
-            return array
+            break
         end
     end
+
+    return array
 end
 
 function porosity(s2ft :: AbstractArray{<: AbstractFloat}, size)
@@ -109,10 +111,11 @@ function phaserec(s2ft :: AbstractArray{<: AbstractFloat}, size;
         if oldn - n < ϵ || n > oldn
             break
         end
+
         oldn = n
     end
 
-    return recon
+    return recon, normfn(s2ft, recon) / initnorm
 end
 
 """

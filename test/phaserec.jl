@@ -9,13 +9,11 @@ function read_data(name, dims, side)
     return BitArray(array)
 end
 
-diff(a1, a2) = norm(two_point(a1) - two_point(a2))
-
 function test_rec(array)
-    rec1 = phaserec(array; maxsteps = 1)
-    rec2 = phaserec(array; maxsteps = 100)
+    _, imp1 = phaserec(array; maxsteps = 1)
+    _, imp2 = phaserec(array; maxsteps = 100)
 
-    @test diff(rec1, array) > diff(rec2, array)
+    @test imp2 < imp1
 end
 
 @testset "Reconstruct ceramic" begin
