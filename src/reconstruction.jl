@@ -67,14 +67,16 @@ threshold(array :: AbstractArray{<: AbstractFloat}, porosity :: AbstractFloat) =
     array .> quantile(reshape(array, length(array)), porosity)
 
 """
-    phaserec(s2ft, size; radius = 0.6, maxstep = 300, ϵ = 10^-5)
+    phaserec(s2ft, size; radius = 0.6, maxstep = 300, ϵ = 10^-5[, noise])
 
 Reconstruct an image from the two-point correlation function. `s2ft`
 is unnormalized two-point correlation function in frequency domain and
 `size` are dimensions of the original image. Optional parameter
 `radius` governs noise filtration. `maxsteps` is a maximal number of
 iterations. Smaller `ϵ` usually produces better results, but default
-value should be OK for all cases.
+value should be OK for all cases. `noise` is a function of two
+arguments: shape tuple and porosity which produces an initial noise
+for reconstruction.
 
 # References
 1. A. Cherkasov, A. Ananev, Adaptive phase-retrieval stochastic
@@ -84,10 +86,13 @@ value should be OK for all cases.
 See also: [`two_point`](@ref).
 """
 function phaserec(s2ft :: AbstractArray{<: AbstractFloat}, size;
-                  radius = 0.6, maxsteps = 300, ϵ = 10^-5)
+                  radius   = 0.6,
+                  maxsteps = 300,
+                  ϵ        = 10^-5,
+                  noise    = initial_guess)
     p = porosity(s2ft, size)
     # Make initial guess for the reconstruction
-    recon  = initial_guess(size, p)
+    recon  = noise(size, p)
     # Make Gaussian low-pass filter
     filter = make_filter(size, radius)
     # Cost function based on S₂ map
@@ -120,11 +125,18 @@ function phaserec(s2ft :: AbstractArray{<: AbstractFloat}, size;
 end
 
 """
-    phaserec(array; radius = 0.6, maxsteps = 300, ϵ = 10^-5)
+    phaserec(array; radius = 0.6, maxsteps = 300, ϵ = 10^-5[, noise])
 
 Reconstruct `array` which must be an array of booleans. This is
 equivalent to running `phaserec(two_point(array), size(array); ...)`.
 """
-phaserec(array :: AbstractArray{Bool}; radius = 0.6, maxsteps = 300, ϵ = 10^-5) =
+phaserec(array :: AbstractArray{Bool};
+         radius   = 0.6,
+         maxsteps = 300,
+         ϵ        = 10^-5,
+         noise    = initial_guess) =
     phaserec(two_point(array), size(array);
-             radius = radius, maxsteps = maxsteps, ϵ = ϵ)
+             radius   = radius,
+             maxsteps = maxsteps,
+             ϵ        = ϵ,
+             noise    = noise)
