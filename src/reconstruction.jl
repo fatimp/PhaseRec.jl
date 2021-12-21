@@ -1,3 +1,5 @@
+Maybe{T} = Union{T, Nothing}
+
 function initial_guess(size, p :: AbstractFloat)
     @assert 0 < p < 1
     array   = zeros(Bool, size)
@@ -74,9 +76,8 @@ is unnormalized two-point correlation function in frequency domain and
 `size` are dimensions of the original image. Optional parameter
 `radius` governs noise filtration. `maxsteps` is a maximal number of
 iterations. Smaller `ϵ` usually produces better results, but default
-value should be OK for all cases. `noise` is a function of two
-arguments: shape tuple and porosity which produces an initial noise
-for reconstruction.
+value should be OK for all cases. `noise` is an optional array of
+booleans which contains initial approximation.
 
 # References
 1. A. Cherkasov, A. Ananev, Adaptive phase-retrieval stochastic
@@ -85,14 +86,14 @@ for reconstruction.
 
 See also: [`two_point`](@ref).
 """
-function phaserec(s2ft :: AbstractArray{<: AbstractFloat}, size;
+function phaserec(s2ft  :: AbstractArray{<: AbstractFloat}, size;
                   radius   = 0.6,
                   maxsteps = 300,
                   ϵ        = 10^-5,
-                  noise    = initial_guess)
+                  noise :: Maybe{AbstractArray{Bool}} = nothing)
     p = porosity(s2ft, size)
     # Make initial guess for the reconstruction
-    recon  = noise(size, p)
+    recon  = isnothing(noise) ? initial_guess(size, p) : noise
     # Make Gaussian low-pass filter
     filter = make_filter(size, radius)
     # Cost function based on S₂ map
@@ -134,7 +135,7 @@ phaserec(array :: AbstractArray{Bool};
          radius   = 0.6,
          maxsteps = 300,
          ϵ        = 10^-5,
-         noise    = initial_guess) =
+         noise    = nothing) =
     phaserec(two_point(array), size(array);
              radius   = radius,
              maxsteps = maxsteps,
