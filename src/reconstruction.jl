@@ -55,10 +55,13 @@ function make_filter(size, σ)
     l = 4ceil(Int, σ) + 1
     w = l >> 1
 
-    uidx = oneunit(CartesianIndices(array)[begin])
-    for idx in uidx:l*uidx
-        x = ((x-1-w)^2 for x in Tuple(idx))
-        array[idx] = exp(-sum(x)/(2σ^2))
+    uidx = array |> CartesianIndices |> first |> oneunit
+    for offset in -w*uidx:w*uidx
+        k = Tuple(offset)
+        idx = (mod(k + s, s) + 1 for (k, s) in zip(k, size)) |>
+            Tuple |> CartesianIndex
+
+        array[idx] = exp(-sum(k^2 for k in k)/(2σ^2))
     end
 
     return rfft(array ./ sum(array))
