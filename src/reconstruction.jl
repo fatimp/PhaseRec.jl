@@ -1,27 +1,11 @@
 Maybe{T} = Union{T, Nothing}
 
-function initial_guess(size, p :: AbstractFloat)
-    @assert 0 < p < 1
-    array   = zeros(Bool, size)
-    nsolid  = (1 - p)*length(array) |> round |> Int
-    n       = 0
-    indices = CartesianIndices(array)
+# Convert grayscale array to binary saving porosity of the original
+threshold(array :: AbstractArray{<: AbstractFloat}, porosity :: AbstractFloat) =
+    array .> quantile(reshape(array, length(array)), porosity)
 
-    while true
-        idx = rand(indices)
-
-        if array[idx] == false
-            n = n + 1
-            array[idx] = true
-        end
-
-        if n == nsolid
-            break
-        end
-    end
-
-    return array
-end
+initial_guess(size, p :: AbstractFloat) =
+    threshold(rand(Float64, size), p)
 
 function porosity(s2ft :: AbstractArray{<: AbstractFloat}, size)
     s2 = irfft(s2ft, size[1]) / reduce(*, size)
@@ -67,10 +51,6 @@ function make_filter(size, σ)
     return rfft(array ./ sum(array))
 end
 
-# Convert grayscale array to binary saving porosity of the original
-threshold(array :: AbstractArray{<: AbstractFloat}, porosity :: AbstractFloat) =
-    array .> quantile(reshape(array, length(array)), porosity)
-
 """
     phaserec(s2ft, size; radius = 0.6, maxstep = 300, ϵ = 10^-5[, noise])
 
@@ -95,6 +75,8 @@ function phaserec(s2ft  :: AbstractArray{<: AbstractFloat}, size;
                   ϵ        = 10^-5,
                   noise :: Maybe{AbstractArray{Bool}} = nothing)
     p = porosity(s2ft, size)
+    @assert 0 < p < 1
+
     # Make initial guess for the reconstruction
     recon  = isnothing(noise) ? initial_guess(size, p) : noise
     # Make Gaussian low-pass filter
