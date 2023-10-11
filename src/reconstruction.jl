@@ -1,5 +1,24 @@
 Maybe{T} = Union{T, Nothing}
 
+abstract type BoundaryConditions end
+struct ZeroPadding <: BoundaryConditions end
+struct Periodic    <: BoundaryConditions end
+
+maybe_pad(array :: AbstractArray{Bool}, :: Periodic) = array
+function maybe_pad(array :: AbstractArray{Bool, N}, :: ZeroPadding) where N
+    newsize = Tuple(2s - 1 for s in size(array)) :: NTuple{N, Int64}
+    indices = Tuple(Base.OneTo(s) for s in size(array)) :: NTuple{N, Base.OneTo}
+    padded = falses(newsize...)
+    padded[indices...] .= array
+    return padded
+end
+
+maybe_cut_padding(array :: AbstractArray, :: Periodic) = array
+function maybe_cut_padding(array :: AbstractArray, :: ZeroPadding)
+    newsize = (Base.OneTo((s + 1)÷2) for s in size(array))
+    return array[newsize...]
+end
+
 # Convert grayscale array to binary saving porosity of the original
 threshold(array :: AbstractArray{<: AbstractFloat}, porosity :: AbstractFloat) =
     array .> quantile(reshape(array, length(array)), porosity)
@@ -7,9 +26,10 @@ threshold(array :: AbstractArray{<: AbstractFloat}, porosity :: AbstractFloat) =
 initial_guess(size, p :: AbstractFloat) =
     threshold(rand(Float64, size), p)
 
-function porosity(s2ft :: AbstractArray{<: AbstractFloat}, size)
-    s2 = irfft(s2ft, size[1]) / reduce(*, size)
-    return 1 - s2[1]
+function porosity(s2ft :: AbstractArray{<: AbstractFloat}, size, bc)
+    recsize = bc == Periodic() ? size[1] : 2size[1] - 1
+    s2 = irfft(s2ft, recsize)
+    return 1 - s2[1] / reduce(*, size)
 end
 
 """
@@ -69,32 +89,36 @@ initial approximation.
 
 See also: [`autocorrelation`](@ref).
 """
-function phaserec(s2ft  :: AbstractArray{<: AbstractFloat}, size;
+function phaserec(target :: AbstractArray{<: AbstractFloat}, arraysize;
                   radius   = 0.6,
                   maxsteps = 300,
                   ϵ        = 10^-5,
-                  noise :: Maybe{AbstractArray{Bool}} = nothing)
-    p = porosity(s2ft, size)
+                  noise  :: Maybe{AbstractArray{Bool}} = nothing,
+                  bc     :: BoundaryConditions = Periodic())
+    p = porosity(target, arraysize, bc)
     @assert 0 < p < 1
 
     # Make initial guess for the reconstruction
-    recon  = isnothing(noise) ? initial_guess(size, p) : noise
+    guess = isnothing(noise) ? initial_guess(arraysize, p) : noise
+    recon  = maybe_pad(guess, bc)
+
     # Make Gaussian low-pass filter
-    filter = make_filter(size, radius)
+    filter = make_filter(size(recon), radius)
     # Cost function based on S₂ map
-    normfn(corr, rec) = norm((corr - autocorrelation(rec))/length(corr))
-    initnorm = normfn(s2ft, recon)
+    normfn(corr, rec) = norm(corr - autocorrelation(rec))
+    initnorm = normfn(target, recon)
     oldn = 1.0
 
     for steps in 1:maxsteps
         # Restore S₂ function
-        gray = replace_abs(recon, s2ft)
+        gray = replace_abs(recon, target)
         # Apply low-pass filter
         gray = filter .* gray
         # Convert to two-phase image
-        recon = threshold(irfft(gray, size[1]), p)
+        gray_spatial = maybe_cut_padding(irfft(gray, size(recon, 1)), bc)
+        recon = maybe_pad(threshold(gray_spatial, p), bc)
 
-        n = normfn(s2ft, recon) / initnorm
+        n = normfn(target, recon) / initnorm
 
         if (rem(steps, 10) == 1)
             @info "Cost = $(n)"
@@ -107,7 +131,7 @@ function phaserec(s2ft  :: AbstractArray{<: AbstractFloat}, size;
         oldn = n
     end
 
-    return recon, normfn(s2ft, recon) / initnorm
+    return maybe_cut_padding(recon, bc), normfn(target, recon) / initnorm
 end
 
 """
@@ -120,9 +144,7 @@ phaserec(array :: AbstractArray{Bool};
          radius   = 0.6,
          maxsteps = 300,
          ϵ        = 10^-5,
-         noise    = nothing) =
-    phaserec(autocorrelation(array), size(array);
-             radius   = radius,
-             maxsteps = maxsteps,
-             ϵ        = ϵ,
-             noise    = noise)
+         noise    = nothing,
+         bc       = Periodic()) =
+    phaserec(autocorrelation(maybe_pad(array, bc)), size(array);
+             radius, maxsteps, ϵ, noise, bc)

@@ -6,6 +6,7 @@ using Logging
 using Base.Iterators
 
 include("reconstruction.jl")
-export phaserec, autocorrelation
+export phaserec, autocorrelation,
+    BoundaryConditions, ZeroPadding, Periodic
 
 end # module
