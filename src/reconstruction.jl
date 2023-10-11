@@ -92,7 +92,6 @@ See also: [`autocorrelation`](@ref).
 function phaserec(target :: AbstractArray{<: AbstractFloat}, arraysize;
                   radius   = 0.6,
                   maxsteps = 300,
-                  ϵ        = 10^-5,
                   noise  :: Maybe{AbstractArray{Bool}} = nothing,
                   bc     :: BoundaryConditions = Periodic())
     p = porosity(target, arraysize, bc)
@@ -124,10 +123,7 @@ function phaserec(target :: AbstractArray{<: AbstractFloat}, arraysize;
             @info "Cost = $(n)"
         end
 
-        if oldn - n < ϵ || n > oldn
-            break
-        end
-
+        if oldn ≈ n break end
         oldn = n
     end
 
@@ -143,8 +139,7 @@ equivalent to running `phaserec(autocorrelation(array), size(array); ...)`.
 phaserec(array :: AbstractArray{Bool};
          radius   = 0.6,
          maxsteps = 300,
-         ϵ        = 10^-5,
          noise    = nothing,
          bc       = Periodic()) =
     phaserec(autocorrelation(maybe_pad(array, bc)), size(array);
-             radius, maxsteps, ϵ, noise, bc)
+             radius, maxsteps, noise, bc)
