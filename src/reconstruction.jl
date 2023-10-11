@@ -91,6 +91,7 @@ See also: [`autocorrelation`](@ref).
 """
 function phaserec(target :: AbstractArray{<: AbstractFloat}, arraysize;
                   radius   = 0.6,
+                  α        = 0.997,
                   maxsteps = 300,
                   noise  :: Maybe{AbstractArray{Bool}} = nothing,
                   bc     :: BoundaryConditions = Periodic())
@@ -111,19 +112,36 @@ function phaserec(target :: AbstractArray{<: AbstractFloat}, arraysize;
     for steps in 1:maxsteps
         # Restore S₂ function
         gray = replace_abs(recon, target)
+
+        diff = maximum(abs.(gray)) - minimum(abs.(gray))
+        gray = gray + 0.002 * diff * rand(ComplexF64, size(gray))
+
         # Apply low-pass filter
         gray = filter .* gray
         # Convert to two-phase image
         gray_spatial = maybe_cut_padding(irfft(gray, size(recon, 1)), bc)
-        recon = maybe_pad(threshold(gray_spatial, p), bc)
+        candidate = maybe_pad(threshold(gray_spatial, p), bc)
 
+        n = normfn(target, candidate) / initnorm
+        if n < oldn
+            # Candidate is better than the previous reconstruction, accept
+            recon = candidate
+        else
+            r = rand()
+            thr = exp(-500(n - oldn) / α^steps)
+            @info "Rand = $(r), Threshold = $(thr)"
+            # Candidate is worse than the previous reconstruction,
+            # accept by random choice.
+            if r < thr
+                recon = candidate
+            end
+        end
         n = normfn(target, recon) / initnorm
 
         if (rem(steps, 10) == 1)
             @info "Cost = $(n)"
         end
 
-        if oldn ≈ n break end
         oldn = n
     end
 
@@ -138,8 +156,9 @@ equivalent to running `phaserec(autocorrelation(array), size(array); ...)`.
 """
 phaserec(array :: AbstractArray{Bool};
          radius   = 0.6,
+         α        = 0.997,
          maxsteps = 300,
          noise    = nothing,
          bc       = Periodic()) =
     phaserec(autocorrelation(maybe_pad(array, bc)), size(array);
-             radius, maxsteps, noise, bc)
+             radius, α, maxsteps, noise, bc)
