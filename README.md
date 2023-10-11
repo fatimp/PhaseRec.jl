@@ -4,7 +4,7 @@
 Porous media reconstruction package which uses a method called "Phase
 reconstruction" or, shortly, "PhaseRec".
 
-Run `?phaserec` and `?two_point` in REPL for documentation.
+Run `?phaserec` and `?autocorrelation` in REPL for documentation.
 
 ## Examples
 

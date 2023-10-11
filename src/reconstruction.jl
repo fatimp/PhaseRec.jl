@@ -13,12 +13,12 @@ function porosity(s2ft :: AbstractArray{<: AbstractFloat}, size)
 end
 
 """
-    two_point(array)
+    autocorrelation(array)
 
-Calculate unnormalized two-point correlation function for array of
+Calculate unnormalized autocorrelationcorrelation for array of
 booleans. The result can be used in [`phaserec`](@ref) function.
 """
-two_point(array :: AbstractArray{Bool}) = array |> rfft .|> abs2
+autocorrelation(array :: AbstractArray{Bool}) = array |> rfft .|> abs2
 
 # This is the core of PhaseRec algorithm.
 #
@@ -54,20 +54,20 @@ end
 """
     phaserec(s2ft, size; radius = 0.6, maxstep = 300, ϵ = 10^-5[, noise])
 
-Reconstruct an image from the two-point correlation function. `s2ft`
-is unnormalized two-point correlation function in frequency domain and
-`size` are dimensions of the original image. Optional parameter
-`radius` governs noise filtration. `maxsteps` is a maximal number of
-iterations. Smaller `ϵ` usually produces better results, but default
-value should be OK for all cases. `noise` is an optional array of
-booleans which contains initial approximation.
+Reconstruct an image from its autocorrelation. `s2ft` is unnormalized
+autocorrelation in frequency domain and `size` are dimensions of the
+original image. Optional parameter `radius` governs noise
+filtration. `maxsteps` is a maximal number of iterations. Smaller `ϵ`
+usually produces better results, but default value should be OK for
+all cases. `noise` is an optional array of booleans which contains
+initial approximation.
 
 # References
 1. A. Cherkasov, A. Ananev, Adaptive phase-retrieval stochastic
    reconstruction with correlation functions: Three-dimensional images
    from two-dimensional cuts, Phys. Rev. E, 104, 3, 2021
 
-See also: [`two_point`](@ref).
+See also: [`autocorrelation`](@ref).
 """
 function phaserec(s2ft  :: AbstractArray{<: AbstractFloat}, size;
                   radius   = 0.6,
@@ -82,7 +82,7 @@ function phaserec(s2ft  :: AbstractArray{<: AbstractFloat}, size;
     # Make Gaussian low-pass filter
     filter = make_filter(size, radius)
     # Cost function based on S₂ map
-    normfn(corr, rec) = norm((corr - two_point(rec))/length(corr))
+    normfn(corr, rec) = norm((corr - autocorrelation(rec))/length(corr))
     initnorm = normfn(s2ft, recon)
     oldn = 1.0
 
@@ -114,14 +114,14 @@ end
     phaserec(array; radius = 0.6, maxsteps = 300, ϵ = 10^-5[, noise])
 
 Reconstruct `array` which must be an array of booleans. This is
-equivalent to running `phaserec(two_point(array), size(array); ...)`.
+equivalent to running `phaserec(autocorrelation(array), size(array); ...)`.
 """
 phaserec(array :: AbstractArray{Bool};
          radius   = 0.6,
          maxsteps = 300,
          ϵ        = 10^-5,
          noise    = nothing) =
-    phaserec(two_point(array), size(array);
+    phaserec(autocorrelation(array), size(array);
              radius   = radius,
              maxsteps = maxsteps,
              ϵ        = ϵ,
